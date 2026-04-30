@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useApi } from "../Context/ApiContext";
 
 function MiniBar({ value, color }) {
@@ -19,6 +19,7 @@ function MiniBar({ value, color }) {
 export default function SystemWidget() {
   const api = useApi();
   const intervalRef = useRef(null);
+  const [expanded, setExpanded] = useState(false);
 
   if (!api) {
     return (
@@ -38,12 +39,19 @@ export default function SystemWidget() {
     return () => clearInterval(intervalRef.current);
   }, [fetchSysStats]);
 
-  const { cpu = 0, mem = 0, disk = 0 } = sysStats;
+  const { cpu = 0, mem = 0, disk = 0, uptime = "—" } = sysStats;
 
   const stats = [
     { label: "CPU", value: cpu, color: "#38bdf8" },
     { label: "RAM", value: mem, color: "#a78bfa" },
     { label: "DISK", value: disk, color: "#34d399" },
+  ];
+
+  const extraStats = [
+    { label: "Uptime", value: uptime },
+    { label: "Hostname", value: "instance-20251119" },
+    { label: "OS", value: "Ubuntu 22.04 LTS" },
+    { label: "Kernel", value: "5.15.0-1034-gcp" },
   ];
 
   return (
@@ -56,9 +64,17 @@ export default function SystemWidget() {
               <p className="text-xs uppercase tracking-[0.24em] text-slate-400">System widget</p>
               <h2 className="mt-1 text-lg font-semibold text-white">Live system stats</h2>
             </div>
-            <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-emerald-200 ring-1 ring-emerald-500/20">
-              active
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setExpanded(!expanded)}
+                className="rounded-full bg-slate-800/50 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-slate-300 ring-1 ring-white/10 hover:bg-slate-700/50 transition-colors"
+              >
+                {expanded ? "Collapse" : "Expand"}
+              </button>
+              <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.24em] text-emerald-200 ring-1 ring-emerald-500/20">
+                active
+              </span>
+            </div>
           </div>
 
           <div className="grid gap-4 sm:grid-cols-3">
@@ -92,6 +108,20 @@ export default function SystemWidget() {
               </div>
             ))}
           </div>
+
+          {expanded && (
+            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+              <p className="text-sm font-medium text-slate-200 mb-3">Additional info</p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {extraStats.map(({ label, value }) => (
+                  <div key={label} className="flex justify-between items-center py-2 border-b border-white/5 last:border-0">
+                    <span className="text-sm text-slate-400">{label}</span>
+                    <span className="text-sm font-mono text-slate-200">{value}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

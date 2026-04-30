@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Terminal, Folder, Settings, Search } from "lucide-react";
+import { Terminal, Folder, Settings, Search, Calendar } from "lucide-react";
 import { useWindows } from "./Context/WindowContext";
 
 const MAX_INSTANCES = 5;
@@ -82,6 +82,11 @@ export default function Sidebar() {
     );
   };
 
+  const currentDate = new Date();
+  const day = currentDate.getDate();
+  const month = currentDate.toLocaleString('default', { month: 'short' });
+  const year = currentDate.getFullYear();
+
   return (
     <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/70 backdrop-blur-md flex items-center px-4 gap-4 border-t border-white/10">
       <div className="flex items-center bg-white/10 rounded-md px-2 py-1 w-48">
@@ -97,6 +102,15 @@ export default function Sidebar() {
         <AppIcon type="terminal" Icon={Terminal} />
         <AppIcon type="files" Icon={Folder} />
         <AppIcon type="settings" Icon={Settings} />
+
+        {/* Calendar */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg hover:bg-white/10 transition cursor-pointer">
+          <Calendar className="w-4 h-4 text-white" />
+          <div className="text-xs text-white">
+            <div className="font-semibold">{day}</div>
+            <div className="text-gray-400">{month} {year}</div>
+          </div>
+        </div>
       </div>
     </div>
   );
