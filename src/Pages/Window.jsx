@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Minus, Maximize2, Minimize2, X } from "lucide-react";
 
 export default function Window({
   win,
@@ -100,13 +101,31 @@ export default function Window({
         <span className="text-xs">{win.type}</span>
 
         <div className="flex gap-2">
-          <button onClick={() => updateWindow(win.id, { minimized: true })}>
-            🟡
+          <button
+            onClick={() => updateWindow(win.id, { minimized: true })}
+            className="p-1 hover:bg-white/10 rounded transition"
+            title="Minimize"
+          >
+            <Minus size={16} className="text-white" />
           </button>
-          <button onClick={maximize}>
-            {win.maximized ? "🗗" : "🟢"}
+          <button
+            onClick={maximize}
+            className="p-1 hover:bg-white/10 rounded transition"
+            title={win.maximized ? "Restore" : "Maximize"}
+          >
+            {win.maximized ? (
+              <Minimize2 size={16} className="text-white" />
+            ) : (
+              <Maximize2 size={16} className="text-white" />
+            )}
           </button>
-          <button onClick={() => closeWindow(win.id)}>❌</button>
+          <button
+            onClick={() => closeWindow(win.id)}
+            className="p-1 hover:bg-red-500/20 rounded transition"
+            title="Close"
+          >
+            <X size={16} className="text-red-400" />
+          </button>
         </div>
       </div>
 

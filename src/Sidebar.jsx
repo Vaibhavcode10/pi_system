@@ -63,7 +63,7 @@ export default function Sidebar() {
 
         {hoveredApp === type && instances.length > 0 && (
           <div
-            className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-[#111827] border border-white/10 rounded-lg shadow-xl p-2 flex flex-col gap-1 min-w-[120px]"
+            className="absolute bottom-14 left-1/2 -translate-x-1/2 bg-[#111827] border border-white/10 rounded-lg shadow-xl p-2 flex flex-col gap-1 min-w-[120px] z-[9999]"
             onMouseEnter={() => clearTimeout(hoverTimeout.current)}
             onMouseLeave={handleMouseLeave}
           >
