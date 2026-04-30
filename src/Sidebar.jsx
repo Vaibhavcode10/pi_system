@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Terminal, Folder, Settings, Search, Calendar } from "lucide-react";
+import { Terminal, Folder, Settings, Search, Calendar, Code } from "lucide-react";
 import { useWindows } from "./Context/WindowContext";
 
 const MAX_INSTANCES = 5;
@@ -98,18 +98,18 @@ export default function Sidebar() {
         />
       </div>
 
-      <div className="flex items-center gap-4 ml-auto">
+      <div className="flex items-center gap-4">
         <AppIcon type="terminal" Icon={Terminal} />
         <AppIcon type="files" Icon={Folder} />
         <AppIcon type="settings" Icon={Settings} />
+        <AppIcon type="editor" Icon={Code} />
+      </div>
 
-        {/* Calendar */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-lg hover:bg-white/10 transition cursor-pointer">
-          <Calendar className="w-4 h-4 text-white" />
-          <div className="text-xs text-white">
-            <div className="font-semibold">{day}</div>
-            <div className="text-gray-400">{month} {year}</div>
-          </div>
+      <div className="absolute right-4 flex items-center gap-2 px-3 py-2 rounded-lg transition cursor-pointer">
+        <Calendar className="w-4 h-4 text-white" />
+        <div className="text-xs text-white">
+          <div className="font-semibold">{day}</div>
+          <div className="text-gray-400">{month} {year}</div>
         </div>
       </div>
     </div>

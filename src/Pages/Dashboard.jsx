@@ -5,6 +5,7 @@ import Terminal from "./Terminal";
 import FileExplorer from "./File_eplorer";
 import Settings from "./Settings";
 import SystemWidget from "./SystemWidget";
+import CodeEditor from "./Editor";
 
 import { useWindows } from "../Context/WindowContext";
 
@@ -12,6 +13,7 @@ const APP_MAP = {
   terminal: Terminal,
   files: FileExplorer,
   settings: Settings,
+  editor: CodeEditor,
 };
 
 export default function Dashboard() {

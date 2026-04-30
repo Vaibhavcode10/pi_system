@@ -2,7 +2,7 @@
 
 const ApiContext = createContext(null);
 
-const BASE_URL = "http://136.115.159.104:5005";
+const BASE_URL = "/api";
 
 export function ApiProvider({ children }) {
   const [currentPath, setCurrentPath] = useState("");
@@ -120,6 +120,40 @@ const [loadingProcess, setLoadingProcess] = useState(false);
     }
   }, [currentPath, listDir]);
 
+  // ── FS: create file ──────────────────────────────────────────
+  const createFile = useCallback(async (path, content = "") => {
+    try {
+      const res = await fetch(`${BASE_URL}/fs/file`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path, content }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await listDir(currentPath);
+      return true;
+    } catch (e) {
+      setFsError(e.message);
+      return false;
+    }
+  }, [currentPath, listDir]);
+
+  // ── FS: rename ───────────────────────────────────────────────
+  const renamePath = useCallback(async (oldPath, newPath) => {
+    try {
+      const res = await fetch(`${BASE_URL}/fs/rename`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPath, newPath }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await listDir(currentPath);
+      return true;
+    } catch (e) {
+      setFsError(e.message);
+      return false;
+    }
+  }, [currentPath, listDir]);
+
   const closeFile = () => setOpenFile(null);
 
   //stats
@@ -166,7 +200,7 @@ const fetchProcesses = useCallback(async () => {
   currentPath, setCurrentPath,
   dirContents,
   loadingFs, fsError,
-  listDir, readFile, writeFile, deletePath,
+  listDir, readFile, writeFile, deletePath, createFile, renamePath,
 
   // Editor
   openFile, setOpenFile, closeFile,

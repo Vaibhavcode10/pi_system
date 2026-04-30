@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useApi } from "../Context/ApiContext";
+import { useWindows } from "../Context/WindowContext";
+import CodeEditor from "./Editor";
 
 // ── tiny icon helpers (SVG, no external dep) ──────────────────
 const Icon = ({ d, size = 20, className = "" }) => (
@@ -23,6 +25,7 @@ const ICONS = {
   close:      "M18 6L6 18M6 6l12 12",
   home:       "M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z M9 22V12h6v10",
   newfile:    "M12 5v14M5 12h14",
+  rename:     "M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z",
   spinner:    "M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83",
 };
 
@@ -38,66 +41,6 @@ function extColor(name) {
   return map[ext] || "#64748b";
 }
 
-// ── inline editor ─────────────────────────────────────────────
-function Editor() {
-  const { openFile, closeFile, writeFile, savingFile } = useApi();
-  const [content, setContent] = useState("");
-  const [dirty, setDirty] = useState(false);
-
-  useEffect(() => {
-    if (openFile) { setContent(openFile.content); setDirty(false); }
-  }, [openFile]);
-
-  if (!openFile) return null;
-
-  const filename = openFile.path.split("/").pop();
-
-  const handleSave = async () => {
-    const ok = await writeFile(openFile.path, content);
-    if (ok) setDirty(false);
-  };
-
-  return (
-    <div className="flex flex-col h-full bg-[#0d1117]">
-      {/* editor topbar */}
-      <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e2a38] bg-[#0a0f16]">
-        <div className="flex items-center gap-3 min-w-0">
-          <span
-            className="w-3 h-3 rounded-full flex-shrink-0"
-            style={{ backgroundColor: extColor(filename) }}
-          />
-          <span className="text-base font-mono text-[#c9d1d9] truncate">{filename}</span>
-          {dirty && <span className="text-sm text-amber-400 ml-1">●</span>}
-        </div>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={handleSave}
-            disabled={savingFile || !dirty}
-            className="flex items-center gap-2 px-4 py-1.5 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] disabled:opacity-40 text-white transition-colors"
-          >
-            <Icon d={ICONS.save} size={15} />
-            {savingFile ? "Saving…" : "Save"}
-          </button>
-          <button
-            onClick={closeFile}
-            className="p-1.5 rounded text-[#6b7280] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors"
-          >
-            <Icon d={ICONS.close} size={16} />
-          </button>
-        </div>
-      </div>
-      {/* textarea */}
-      <textarea
-        className="flex-1 w-full bg-transparent text-[#c9d1d9] font-mono text-base p-5 resize-none focus:outline-none leading-7"
-        style={{ tabSize: 2 }}
-        value={content}
-        onChange={(e) => { setContent(e.target.value); setDirty(true); }}
-        spellCheck={false}
-      />
-    </div>
-  );
-}
-
 // ── main component ────────────────────────────────────────────
 export default function FileExplorer() {
   const {
@@ -106,8 +49,12 @@ export default function FileExplorer() {
     listDir, readFile, deletePath,
     openFile, loadingFile,
   } = useApi();
+  const { openWindow } = useWindows();
 
   const [confirmDelete, setConfirmDelete] = useState(null);
+  const [newFileName, setNewFileName] = useState("");
+  const [renameItem, setRenameItem] = useState(null);
+  const [renameName, setRenameName] = useState("");
   const [pathInput, setPathInput] = useState("");
 
   useEffect(() => { listDir(""); }, []);
@@ -125,7 +72,10 @@ export default function FileExplorer() {
   const handleItemClick = (item) => {
     const newPath = currentPath ? `${currentPath}/${item.name}` : item.name;
     if (item.type === "folder") navigate(newPath);
-    else readFile(newPath);
+    else {
+      readFile(newPath);
+      openWindow("editor");
+    }
   };
 
   const handleDelete = async () => {
@@ -135,12 +85,26 @@ export default function FileExplorer() {
     setConfirmDelete(null);
   };
 
+  const handleCreate = async () => {
+    if (!newFileName.trim()) return;
+    const path = currentPath ? `${currentPath}/${newFileName}` : newFileName;
+    await createFile(path);
+    setNewFileName("");
+  };
+
+  const handleRename = async () => {
+    if (!renameItem || !renameName.trim()) return;
+    const oldPath = currentPath ? `${currentPath}/${renameItem}` : renameItem;
+    const newPath = currentPath ? `${currentPath}/${renameName}` : renameName;
+    await renamePath(oldPath, newPath);
+    setRenameItem(null);
+    setRenameName("");
+  };
+
   return (
     <div className="flex h-full overflow-hidden">
-      {/* ── left pane: directory listing ── */}
-      <div
-        className={`flex flex-col ${openFile ? "w-80 flex-shrink-0" : "flex-1"} border-r border-[#1e2a38] bg-[#080d13] transition-all duration-200`}
-      >
+      {/* ── directory listing ── */}
+      <div className="flex flex-col flex-1 border-r border-[#1e2a38] bg-[#080d13] transition-all duration-200">
         {/* toolbar */}
         <div className="flex items-center gap-3 px-4 py-2.5 border-b border-[#1e2a38] bg-[#0a0f16]">
           <button
@@ -164,6 +128,13 @@ export default function FileExplorer() {
             title="Refresh"
           >
             <Icon d={ICONS.refresh} size={16} />
+          </button>
+          <button
+            onClick={() => setNewFileName("newfile.txt")}
+            className="p-2 rounded text-[#4a5568] hover:text-[#58a6ff] hover:bg-[#161f2c] transition-colors"
+            title="New File"
+          >
+            <Icon d={ICONS.newfile} size={16} />
           </button>
           <div className="flex-1 min-w-0">
             <input
@@ -239,12 +210,20 @@ export default function FileExplorer() {
                       </svg>
                     )}
                     <span className="flex-1 text-base font-mono truncate">{item.name}</span>
-                    <button
-                      className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 transition-all"
-                      onClick={(e) => { e.stopPropagation(); setConfirmDelete(item.name); }}
-                    >
-                      <Icon d={ICONS.trash} size={14} />
-                    </button>
+                    <div className="flex gap-1">
+                      <button
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-blue-400 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setRenameItem(item.name); setRenameName(item.name); }}
+                      >
+                        <Icon d={ICONS.rename} size={14} />
+                      </button>
+                      <button
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded hover:text-red-400 transition-all"
+                        onClick={(e) => { e.stopPropagation(); setConfirmDelete(item.name); }}
+                      >
+                        <Icon d={ICONS.trash} size={14} />
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -252,20 +231,6 @@ export default function FileExplorer() {
           )}
         </div>
       </div>
-
-      {/* ── right pane: editor ── */}
-      {openFile && (
-        <div className="flex-1 overflow-hidden">
-          {loadingFile ? (
-            <div className="flex items-center justify-center h-full gap-3 text-[#4a5568]">
-              <Icon d={ICONS.spinner} size={18} className="animate-spin" />
-              <span className="text-base">Loading file…</span>
-            </div>
-          ) : (
-            <Editor />
-          )}
-        </div>
-      )}
 
       {/* ── delete confirm modal ── */}
       {confirmDelete && (
@@ -286,6 +251,67 @@ export default function FileExplorer() {
                 className="px-4 py-2 text-sm rounded bg-red-900 hover:bg-red-800 text-red-200 transition-colors"
               >
                 Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── create file modal ── */}
+      {newFileName && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#0d1117] border border-[#1e2a38] rounded-lg p-6 w-96 shadow-2xl">
+            <p className="text-base text-[#c9d1d9] mb-4">Create new file</p>
+            <input
+              className="w-full bg-[#0d1117] border border-[#1e2a38] rounded px-3 py-2 text-sm font-mono text-[#c9d1d9] focus:outline-none focus:border-[#2d5986]"
+              value={newFileName}
+              onChange={(e) => setNewFileName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleCreate()}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end mt-5">
+              <button
+                onClick={() => setNewFileName("")}
+                className="px-4 py-2 text-sm rounded border border-[#1e2a38] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleCreate}
+                className="px-4 py-2 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] text-white transition-colors"
+              >
+                Create
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── rename modal ── */}
+      {renameItem && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#0d1117] border border-[#1e2a38] rounded-lg p-6 w-96 shadow-2xl">
+            <p className="text-base text-[#c9d1d9] mb-2">Rename item</p>
+            <p className="text-sm font-mono text-[#58a6ff] mb-4 truncate">{renameItem}</p>
+            <input
+              className="w-full bg-[#0d1117] border border-[#1e2a38] rounded px-3 py-2 text-sm font-mono text-[#c9d1d9] focus:outline-none focus:border-[#2d5986]"
+              value={renameName}
+              onChange={(e) => setRenameName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleRename()}
+              autoFocus
+            />
+            <div className="flex gap-3 justify-end mt-5">
+              <button
+                onClick={() => { setRenameItem(null); setRenameName(""); }}
+                className="px-4 py-2 text-sm rounded border border-[#1e2a38] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleRename}
+                className="px-4 py-2 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] text-white transition-colors"
+              >
+                Rename
               </button>
             </div>
           </div>
