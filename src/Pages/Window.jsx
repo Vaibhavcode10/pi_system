@@ -79,7 +79,7 @@ export default function Window({
   return (
     <div
       onMouseDown={() => bringToFront(win.id)}
-      className="absolute bg-[#0a0f16] border border-[#1e2a38] rounded-xl shadow-2xl flex flex-col"
+      className="absolute bg-[#0a0f16] border border-[#1e2a38] rounded-xl shadow-[0_40px_90px_-35px_rgba(0,0,0,0.7)] flex flex-col"
       style={{
         left: win.x,
         top: win.y,

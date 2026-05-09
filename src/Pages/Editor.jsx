@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Editor from "@monaco-editor/react";
 import { useApi } from "../Context/ApiContext";
 
@@ -72,17 +72,45 @@ export default function CodeEditor() {
   const [showFilePicker, setShowFilePicker] = useState(false);
   const [pickerPath, setPickerPath] = useState("");
   const [pickerContents, setPickerContents] = useState([]);
+  const [openFiles, setOpenFiles] = useState([]);
+  const [currentFileIndex, setCurrentFileIndex] = useState(-1);
+  const [showSaveDialog, setShowSaveDialog] = useState(false);
+  const [savePath, setSavePath] = useState("");
+  const editorRef = useRef(null);
 
   useEffect(() => {
     if (openFile) {
-      setContent(openFile.content || "");
+      setOpenFiles((prev) => {
+        const exists = prev.find((f) => f.path === openFile.path);
+        if (!exists) {
+          const newFiles = [...prev, openFile];
+          setCurrentFileIndex(newFiles.length - 1);
+          return newFiles;
+        } else {
+          setCurrentFileIndex(prev.indexOf(exists));
+          return prev;
+        }
+      });
+    }
+  }, [openFile]);
+
+  useEffect(() => {
+    const currentFile = openFiles[currentFileIndex];
+    if (currentFile) {
+      setContent(currentFile.content || "");
       setDirty(false);
       setLoading(false);
     } else {
       setContent("");
       setDirty(false);
     }
-  }, [openFile]);
+  }, [openFiles, currentFileIndex]);
+
+  useEffect(() => {
+    if (editorRef.current) {
+      editorRef.current.setValue(content);
+    }
+  }, [content]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -95,12 +123,17 @@ export default function CodeEditor() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  const handleSave = async () => {
-    if (!openFile) return;
+  const handleSaveAs = async () => {
+    if (!savePath.trim()) return;
     setLoading(true);
-    const ok = await writeFile(openFile.path, content);
-    if (ok) setDirty(false);
+    const ok = await writeFile(savePath, content);
+    if (ok) {
+      // Update the file path
+      setOpenFiles(prev => prev.map((f, i) => i === currentFileIndex ? { ...f, path: savePath } : f));
+      setDirty(false);
+    }
     setLoading(false);
+    setShowSaveDialog(false);
   };
 
   const handleEditorChange = (value) => {
@@ -139,10 +172,55 @@ export default function CodeEditor() {
     }
   };
 
-  const filename = openFile ? openFile.path.split("/").pop() : "Untitled";
+  const currentFile = openFiles[currentFileIndex];
+  const filename = currentFile ? currentFile.path.split("/").pop() : (openFiles.length === 0 ? "No file open" : "Untitled");
+
+  const closeTab = (index) => {
+    setOpenFiles((prev) => {
+      const newFiles = prev.filter((_, i) => i !== index);
+      if (newFiles.length === 0) {
+        setCurrentFileIndex(-1);
+      } else if (currentFileIndex >= newFiles.length) {
+        setCurrentFileIndex(newFiles.length - 1);
+      } else if (currentFileIndex === index) {
+        // Stay at same index if possible, but since removed, adjust
+        setCurrentFileIndex(Math.min(currentFileIndex, newFiles.length - 1));
+      }
+      return newFiles;
+    });
+  };
 
   return (
     <div className="flex flex-col h-full bg-[#0d1117]">
+      {/* Tabs */}
+      {openFiles.length > 0 && (
+        <div className="flex border-b border-[#1e2a38] overflow-x-auto">
+          {openFiles.map((file, index) => (
+            <div
+              key={file.path}
+              className={`flex items-center px-3 py-2 text-sm border-r border-[#1e2a38] cursor-pointer ${
+                index === currentFileIndex
+                  ? "bg-[#1e2a38] text-[#c9d1d9]"
+                  : "hover:bg-[#161f2c] text-[#8b949e]"
+              }`}
+              onClick={() => setCurrentFileIndex(index)}
+            >
+              <span className="truncate max-w-32">{file.path.split("/").pop()}</span>
+              {dirty && index === currentFileIndex && <span className="text-amber-400 ml-1">●</span>}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(index);
+                }}
+                className="ml-2 text-[#6b7280] hover:text-[#c9d1d9]"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-3 border-b border-[#1e2a38] bg-[#0a0f16]">
         <div className="flex items-center gap-3 min-w-0">
@@ -152,6 +230,19 @@ export default function CodeEditor() {
           {dirty && <span className="text-sm text-amber-400 ml-1">●</span>}
         </div>
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              const newFile = { path: `Untitled-${Date.now()}`, content: "" };
+              setOpenFiles(prev => [...prev, newFile]);
+              setCurrentFileIndex(openFiles.length);
+              setContent("");
+              setDirty(false);
+            }}
+            className="flex items-center gap-2 px-4 py-1.5 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] text-white transition-colors"
+          >
+            <Icon d={ICONS.newfile} size={15} />
+            New File
+          </button>
           <button
             onClick={handleOpenFile}
             className="flex items-center gap-2 px-4 py-1.5 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] text-white transition-colors"
@@ -168,8 +259,22 @@ export default function CodeEditor() {
             {savingFile || loading ? "Saving…" : "Save"}
           </button>
           <button
-            onClick={closeFile}
-            className="p-1.5 rounded text-[#6b7280] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors"
+            onClick={() => {
+              if (currentFile) {
+                setSavePath(currentFile.path.startsWith("Untitled") ? "" : currentFile.path);
+                setShowSaveDialog(true);
+              }
+            }}
+            disabled={!currentFile}
+            className="flex items-center gap-2 px-4 py-1.5 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] disabled:opacity-40 text-white transition-colors"
+          >
+            <Icon d={ICONS.save} size={15} />
+            Save As
+          </button>
+          <button
+            onClick={() => closeTab(currentFileIndex)}
+            disabled={openFiles.length === 0}
+            className="p-1.5 rounded text-[#6b7280] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors disabled:opacity-40"
           >
             <Icon d={ICONS.close} size={16} />
           </button>
@@ -184,9 +289,13 @@ export default function CodeEditor() {
         ) : (
           <Editor
             height="100%"
-            language={openFile ? getLanguageFromPath(openFile.path) : "plaintext"}
-            value={content}
+            language={currentFile ? getLanguageFromPath(currentFile.path) : "plaintext"}
+            value=""
             theme="vs-dark"
+            onMount={(editor) => {
+              editorRef.current = editor;
+              editor.setValue(content);
+            }}
             onChange={handleEditorChange}
             options={{
               minimap: { enabled: false },
@@ -199,6 +308,36 @@ export default function CodeEditor() {
           />
         )}
       </div>
+
+      {/* Save As Modal */}
+      {showSaveDialog && (
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50">
+          <div className="bg-[#0d1117] border border-[#1e2a38] rounded-lg p-6 w-96 shadow-2xl">
+            <h3 className="text-lg font-semibold text-[#c9d1d9] mb-4">Save As</h3>
+            <input
+              className="w-full bg-[#0d1117] border border-[#1e2a38] rounded px-3 py-2 text-sm font-mono text-[#8b949e] focus:outline-none focus:border-[#2d5986]"
+              value={savePath}
+              onChange={(e) => setSavePath(e.target.value)}
+              placeholder="path/to/file"
+            />
+            <div className="flex gap-3 justify-end mt-4">
+              <button
+                onClick={() => setShowSaveDialog(false)}
+                className="px-4 py-2 text-sm rounded border border-[#1e2a38] text-[#8b949e] hover:text-[#c9d1d9] hover:bg-[#1e2a38] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveAs}
+                disabled={!savePath.trim() || savingFile || loading}
+                className="px-4 py-2 text-sm rounded bg-[#1a7f64] hover:bg-[#238f72] disabled:opacity-40 text-white transition-colors"
+              >
+                {savingFile || loading ? "Saving…" : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <FilePicker
         isOpen={showFilePicker}

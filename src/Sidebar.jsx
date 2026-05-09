@@ -88,8 +88,8 @@ export default function Sidebar() {
   const year = currentDate.getFullYear();
 
   return (
-    <div className="absolute bottom-0 left-0 right-0 h-16 bg-black/70 backdrop-blur-md flex items-center px-4 gap-4 border-t border-white/10">
-      <div className="flex items-center bg-white/10 rounded-md px-2 py-1 w-48">
+    <div className="absolute bottom-0 left-0 right-0 h-16 bg-slate-950/85 backdrop-blur-xl border-t border-white/10 shadow-[0_-20px_60px_-35px_rgba(0,0,0,0.85)] backdrop-saturate-150 flex items-center px-4 gap-4">
+      <div className="flex items-center bg-white/10 rounded-xl px-2 py-1 w-48 shadow-sm shadow-black/25">
         <Search className="w-4 h-4 text-gray-300" />
         <input
           type="text"

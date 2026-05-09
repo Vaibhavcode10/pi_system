@@ -29,6 +29,10 @@ export default function Dashboard() {
       }}
     >
       <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="absolute inset-0 pointer-events-none"
+        style={{ boxShadow: "inset 0 0 90px rgba(0,0,0,0.52)" }}
+      />
       <SystemWidget />
       {[...windows]
   .sort((a, b) => a.z - b.z) // ✅ ensures top window renders last

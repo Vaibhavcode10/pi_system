@@ -24,27 +24,34 @@ export default function Terminal() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lines]);
 
+  useEffect(() => {
+    if (!busy) {
+      inputRef.current?.focus();
+    }
+  }, [busy]);
+
   const push = (type, text) => {
     setLines((prev) => [...prev, { type, text }]);
   };
 
   // cleaner
-  const cleanOutput = (output) => {
+  const cleanOutput = (output, command) => {
     if (!output) return [];
 
     return output
-      .replace(/\x1B\[[0-?]*[ -/]*[@-~]/g, "")
+      .replace(/\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~]|\].*?(?:\x1B\\|\a))/g, "")
+      .replace(/0;.*?/g, "")
       .replace(/\r/g, "")
       .split("\n")
       .map((l) => l.trim())
-      .filter((l) => l.length > 0 && l.length < 200);
+      .filter((l) => l.length > 0 && l.length < 200 && l !== command && !l.includes('user@vm') && !l.includes('@instance'));
   };
 
   const handleCmd = async (cmd) => {
     const trimmed = cmd.trim();
     if (!trimmed) return;
 
-    push("prompt", `${prompt} ${trimmed}`);
+    push("cmd", `${prompt} ${trimmed}`);
     setHistory((h) => [trimmed, ...h].slice(0, 100));
     setHistIdx(-1);
 
@@ -57,7 +64,7 @@ export default function Terminal() {
 
     try {
       const res = await runTerminalCommand(trimmed);
-      const cleaned = cleanOutput(res);
+      const cleaned = cleanOutput(res, trimmed);
 
       cleaned.forEach((line) => push("out", line));
     } catch (e) {
@@ -91,6 +98,7 @@ export default function Terminal() {
 
   const color = (t) => {
     if (t === "prompt") return "text-green-400";
+    if (t === "cmd") return "text-green-400";
     if (t === "err") return "text-red-400";
     if (t === "sys") return "text-blue-400";
     return "text-gray-200";
@@ -102,7 +110,7 @@ export default function Terminal() {
       onClick={() => inputRef.current?.focus()}
     >
       {/* OUTPUT AREA */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1">
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-1 select-text">
         {lines.map((l, i) =>
           l.type === "blank" ? (
             <div key={i} className="h-2" />
@@ -116,26 +124,23 @@ export default function Terminal() {
           )
         )}
 
-        {busy && (
+        {busy ? (
           <div className="text-gray-500 animate-pulse">processing…</div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <span className="text-green-400">{prompt}</span>
+            <input
+              ref={inputRef}
+              className="flex-1 bg-transparent outline-none text-gray-200 caret-blue-400"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onKeyDown}
+              spellCheck={false}
+            />
+          </div>
         )}
 
         <div ref={bottomRef} />
-      </div>
-
-      {/* INPUT BAR */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-[#1e2a38] bg-[#0a0f16]">
-        <span className="text-green-400">{prompt}</span>
-
-        <input
-          ref={inputRef}
-          className="flex-1 bg-transparent outline-none text-gray-200 caret-blue-400"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={onKeyDown}
-          disabled={busy}
-          spellCheck={false}
-        />
       </div>
     </div>
   );
